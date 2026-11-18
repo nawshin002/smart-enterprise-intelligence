@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Uploaded documents
+server/uploads/*
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Logs
+*.log
+
+# Operating system
+.DS_Store
+Thumbs.db
+
+# Postman local workspace configuration
+.postman/
+postman/
