@@ -1,3 +1,4 @@
+
 const fs = require('fs')
 const path = require('path')
 const db = require('../config/db')
@@ -13,6 +14,8 @@ const getDocuments = async (req, res) => {
         file_size AS size,
         mime_type AS mimetype,
         status,
+        document_type AS documentType,
+        extracted_data AS extractedData,
         uploaded_at AS uploadedAt
        FROM documents
        ORDER BY uploaded_at DESC`

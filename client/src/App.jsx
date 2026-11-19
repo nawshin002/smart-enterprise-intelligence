@@ -78,7 +78,7 @@ function App() {
         result.data,
       ])
 
-      alert('Document uploaded successfully!')
+      alert('Document uploaded and processed successfully!')
     } catch (err) {
       setError(err.message || 'Unable to upload document.')
       console.error(err)
@@ -186,30 +186,61 @@ function App() {
             <p>No documents uploaded yet.</p>
           ) : (
             <div className="document-list">
-              {documents.map((doc) => (
-                <div className="document-item" key={doc.id}>
-                  <div className="document-info">
-                    <span className="pdf-icon">PDF</span>
+              {documents.map((doc) => {
+                const resumeData =
+                  typeof doc.extractedData === 'string'
+                    ? JSON.parse(doc.extractedData)
+                    : doc.extractedData
 
-                    <div>
-                      <h3>{doc.name}</h3>
-                      <p>{doc.size} KB</p>
+                return (
+                  <div className="document-item" key={doc.id}>
+                    <div className="document-info">
+                      <span className="pdf-icon">PDF</span>
+
+                      <div>
+                        <h3>{doc.name}</h3>
+                        <p>{doc.size} KB</p>
+                        <p>
+                          Document Type: {doc.documentType || 'General Document'}
+                        </p>
+
+                        {doc.documentType === 'Resume' && resumeData && (
+                          <div className="resume-details">
+                            <p>
+                              <strong>Email:</strong>{' '}
+                              {resumeData.email || 'Not found'}
+                            </p>
+
+                            <p>
+                              <strong>Phone:</strong>{' '}
+                              {resumeData.phone || 'Not found'}
+                            </p>
+
+                            <p>
+                              <strong>Skills:</strong>{' '}
+                              {resumeData.skills?.length
+                                ? resumeData.skills.join(', ')
+                                : 'No skills detected'}
+                            </p>
+                          </div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="document-actions">
+                      <span>{doc.status}</span>
+
+                      <button
+                        className="remove-button"
+                        onClick={() => handleRemoveDocument(doc.id)}
+                        disabled={deletingId === doc.id}
+                      >
+                        {deletingId === doc.id ? 'Removing...' : 'Remove'}
+                      </button>
                     </div>
                   </div>
-
-                  <div className="document-actions">
-                    <span>{doc.status}</span>
-
-                    <button
-                      className="remove-button"
-                      onClick={() => handleRemoveDocument(doc.id)}
-                      disabled={deletingId === doc.id}
-                    >
-                      {deletingId === doc.id ? 'Removing...' : 'Remove'}
-                    </button>
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
         </section>
