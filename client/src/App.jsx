@@ -1,4 +1,3 @@
-
 import { useState, useRef, useEffect } from 'react'
 import './App.css'
 
@@ -34,6 +33,13 @@ function App() {
   const [uploading, setUploading] = useState(false)
   const [deletingId, setDeletingId] = useState(null)
   const [processingId, setProcessingId] = useState(null)
+
+  // AI Assistant state
+  const [question, setQuestion] = useState('')
+  const [aiAnswer, setAiAnswer] = useState('')
+  const [aiSources, setAiSources] = useState([])
+  const [askingAI, setAskingAI] = useState(false)
+  const [aiError, setAiError] = useState('')
 
   const [error, setError] = useState('')
   const [activeSection, setActiveSection] = useState('Dashboard')
@@ -226,6 +232,41 @@ function App() {
       setError(err.message || 'Unable to update approval.')
     } finally {
       setProcessingId(null)
+    }
+  }
+
+  // Ask DocuMind AI using the RAG backend
+  const handleAskQuestion = async (event) => {
+    event.preventDefault()
+
+    const trimmedQuestion = question.trim()
+    if (!trimmedQuestion || askingAI) return
+
+    setAskingAI(true)
+    setAiError('')
+    setAiAnswer('')
+    setAiSources([])
+
+    try {
+      const response = await fetch(`${API_URL}/rag/ask`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ question: trimmedQuestion }),
+      })
+
+      const result = await response.json()
+
+      if (!response.ok || !result.success) {
+        throw new Error(result.message || 'Unable to get an AI response.')
+      }
+
+      setAiAnswer(result.data.answer || 'No answer was returned.')
+      setAiSources(result.data.sources || [])
+    } catch (err) {
+      setAiError(err.message || 'Unable to connect to the AI assistant.')
+      console.error('AI Assistant error:', err)
+    } finally {
+      setAskingAI(false)
     }
   }
 
@@ -599,12 +640,76 @@ function App() {
               <section className="documents">
                 <h2>DocuMind AI Assistant</h2>
                 <p>
-                  The AI Assistant interface will be implemented in CP08.
+                  Ask questions about your uploaded enterprise documents.
+                  DocuMind retrieves relevant passages and generates an answer
+                  with source document references.
                 </p>
-                <p>
-                  It will help users search and understand their enterprise
-                  documents.
-                </p>
+
+                <form onSubmit={handleAskQuestion} style={{ marginTop: '24px' }}>
+                  <label htmlFor="ai-question">Your question</label>
+                  <textarea
+                    id="ai-question"
+                    value={question}
+                    onChange={(event) => setQuestion(event.target.value)}
+                    placeholder="e.g. Which companies are mentioned in the placement status document?"
+                    rows={3}
+                    disabled={askingAI}
+                    style={{
+                      display: 'block',
+                      width: '100%',
+                      boxSizing: 'border-box',
+                      marginTop: '8px',
+                      padding: '12px',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '8px',
+                      font: 'inherit',
+                      resize: 'vertical',
+                    }}
+                  />
+                  <button
+                    type="submit"
+                    disabled={askingAI || !question.trim()}
+                    style={{ marginTop: '12px' }}
+                  >
+                    {askingAI ? 'Thinking...' : 'Ask DocuMind'}
+                  </button>
+                </form>
+
+                {aiError && (
+                  <div className="error-message" style={{ marginTop: '18px' }}>
+                    {aiError}
+                  </div>
+                )}
+
+                {askingAI && (
+                  <p style={{ marginTop: '20px' }}>
+                    Searching your documents and generating an answer...
+                  </p>
+                )}
+
+                {aiAnswer && (
+                  <div className="document-item" style={{ marginTop: '24px', alignItems: 'flex-start' }}>
+                    <div style={{ width: '100%' }}>
+                      <h3>AI Answer</h3>
+                      <p style={{ whiteSpace: 'pre-wrap', lineHeight: 1.7 }}>
+                        {aiAnswer}
+                      </p>
+
+                      <h3 style={{ marginTop: '20px' }}>Source Documents</h3>
+                      {aiSources.length > 0 ? (
+                        <ul>
+                          {aiSources.map((source) => (
+                            <li key={source.documentId}>
+                              {source.documentName} — {source.documentType || 'General Document'}
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p>No source documents were returned.</p>
+                      )}
+                    </div>
+                  </div>
+                )}
               </section>
             )}
           </>

@@ -5,6 +5,7 @@ const extractPdfText = require('../utils/pdfExtractor')
 const classifyDocument = require('../utils/documentClassifier')
 const extractResumeData = require('../utils/resumeExtractor')
 const generateFileHash = require('../utils/fileHash')
+const indexDocument = require('../services/documentIndexService')
 
 const uploadDocument = async (req, res) => {
   try {
@@ -86,9 +87,32 @@ const uploadDocument = async (req, res) => {
     newDocument.id = result.insertId
     newDocument.uploadedAt = new Date().toISOString()
 
+    // Automatically index the document for RAG
+    let indexing = {
+      success: false,
+      message: 'Document indexing failed.',
+    }
+
+    try {
+      await indexDocument(newDocument.id)
+
+      indexing = {
+        success: true,
+        message: 'Document indexed successfully for AI search.',
+      }
+    } catch (indexError) {
+      console.error('Document indexing error:', indexError)
+
+      indexing = {
+        success: false,
+        message: 'Document uploaded, but AI indexing failed. Please check the backend logs.',
+      }
+    }
+
     return res.status(201).json({
       success: true,
       message: 'Document uploaded and processed successfully!',
+      indexing,
       data: {
         ...newDocument,
         extractedText,

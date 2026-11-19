@@ -8,6 +8,7 @@ const PORT = 5000
 const documentRoutes = require('./src/routes/documentRoutes')
 const uploadRoutes = require('./src/routes/uploadRoutes')
 const approvalRoutes = require('./src/routes/approvalRoutes')
+const ragRoutes = require('./src/routes/ragRoutes')
 
 app.use(cors())
 app.use(express.json())
@@ -16,6 +17,7 @@ app.use(express.json())
 app.use('/api/documents', documentRoutes)
 app.use('/api/upload', uploadRoutes)
 app.use('/api/approvals', approvalRoutes)
+app.use('/api/rag', ragRoutes)
 
 // Health check
 app.get('/api/health', (req, res) => {
