@@ -1,16 +1,22 @@
-
 const fs = require('fs')
 const path = require('path')
-
-const {
-  getAllDocuments,
-  deleteDocument,
-} = require('../config/documentStore')
+const db = require('../config/db')
 
 // Get all uploaded documents
-const getDocuments = (req, res) => {
+const getDocuments = async (req, res) => {
   try {
-    const documents = getAllDocuments()
+    const [documents] = await db.execute(
+      `SELECT
+        id,
+        document_name AS name,
+        stored_filename AS filename,
+        file_size AS size,
+        mime_type AS mimetype,
+        status,
+        uploaded_at AS uploadedAt
+       FROM documents
+       ORDER BY uploaded_at DESC`
+    )
 
     res.status(200).json({
       success: true,
@@ -28,14 +34,16 @@ const getDocuments = (req, res) => {
 }
 
 // Delete a document
-const removeDocument = (req, res) => {
+const removeDocument = async (req, res) => {
   try {
     const { id } = req.params
 
-    const documents = getAllDocuments()
-    const document = documents.find((doc) => doc.id === id)
+    const [documents] = await db.execute(
+      'SELECT stored_filename FROM documents WHERE id = ?',
+      [id]
+    )
 
-    if (!document) {
+    if (documents.length === 0) {
       return res.status(404).json({
         success: false,
         message: 'Document not found.',
@@ -45,14 +53,14 @@ const removeDocument = (req, res) => {
     const filePath = path.join(
       __dirname,
       '../../uploads',
-      document.filename
+      documents[0].stored_filename
     )
 
     if (fs.existsSync(filePath)) {
       fs.unlinkSync(filePath)
     }
 
-    deleteDocument(id)
+    await db.execute('DELETE FROM documents WHERE id = ?', [id])
 
     res.status(200).json({
       success: true,

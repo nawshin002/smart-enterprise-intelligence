@@ -1,7 +1,6 @@
+const db = require('../config/db')
 
-const { addDocument } = require('../config/documentStore')
-
-const uploadDocument = (req, res) => {
+const uploadDocument = async (req, res) => {
   try {
     if (!req.file) {
       return res.status(400).json({
@@ -11,16 +10,28 @@ const uploadDocument = (req, res) => {
     }
 
     const newDocument = {
-      id: req.file.filename,
       name: req.file.originalname,
       size: (req.file.size / 1024).toFixed(2),
       mimetype: req.file.mimetype,
       filename: req.file.filename,
       status: 'Uploaded',
-      uploadedAt: new Date().toISOString(),
     }
 
-    addDocument(newDocument)
+    const [result] = await db.execute(
+      `INSERT INTO documents
+       (document_name, stored_filename, file_size, mime_type, status)
+       VALUES (?, ?, ?, ?, ?)`,
+      [
+        newDocument.name,
+        newDocument.filename,
+        newDocument.size,
+        newDocument.mimetype,
+        newDocument.status,
+      ]
+    )
+
+    newDocument.id = result.insertId
+    newDocument.uploadedAt = new Date().toISOString()
 
     res.status(201).json({
       success: true,
