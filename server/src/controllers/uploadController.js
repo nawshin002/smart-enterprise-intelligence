@@ -1,8 +1,10 @@
 
+const fs = require('fs')
 const db = require('../config/db')
 const extractPdfText = require('../utils/pdfExtractor')
 const classifyDocument = require('../utils/documentClassifier')
 const extractResumeData = require('../utils/resumeExtractor')
+const generateFileHash = require('../utils/fileHash')
 
 const uploadDocument = async (req, res) => {
   try {
@@ -13,8 +15,36 @@ const uploadDocument = async (req, res) => {
       })
     }
 
+    // Generate SHA-256 hash
+    const fileHash = generateFileHash(req.file.path)
+
+    // Check for duplicate documents
+    const [existingDocuments] = await db.execute(
+      'SELECT id FROM documents WHERE file_hash = ?',
+      [fileHash]
+    )
+
+    if (existingDocuments.length > 0) {
+      fs.unlinkSync(req.file.path)
+
+      return res.status(409).json({
+        success: false,
+        message: 'This document has already been uploaded.',
+      })
+    }
+
     // Extract text from PDF
     const extractedText = await extractPdfText(req.file.path)
+
+    // Validate extracted content
+    if (!extractedText || !extractedText.trim()) {
+      fs.unlinkSync(req.file.path)
+
+      return res.status(400).json({
+        success: false,
+        message: 'The uploaded PDF contains no readable text.',
+      })
+    }
 
     // Classify document
     const documentType = classifyDocument(extractedText)
@@ -38,8 +68,8 @@ const uploadDocument = async (req, res) => {
     const [result] = await db.execute(
       `INSERT INTO documents
        (document_name, stored_filename, file_size, mime_type, status,
-        extracted_text, document_type, extracted_data)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+        extracted_text, document_type, extracted_data, file_hash)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         newDocument.name,
         newDocument.filename,
@@ -49,13 +79,14 @@ const uploadDocument = async (req, res) => {
         extractedText,
         documentType,
         extractedData ? JSON.stringify(extractedData) : null,
+        fileHash,
       ]
     )
 
     newDocument.id = result.insertId
     newDocument.uploadedAt = new Date().toISOString()
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: 'Document uploaded and processed successfully!',
       data: {
@@ -68,7 +99,7 @@ const uploadDocument = async (req, res) => {
   } catch (error) {
     console.error('Upload error:', error)
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: 'Document processing failed.',
     })
